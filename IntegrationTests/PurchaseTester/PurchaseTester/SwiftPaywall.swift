@@ -178,7 +178,7 @@ class SwiftPaywall: UIViewController {
                 }
             } else {
                 if let purchaseCompletedHandler = self.delegate?.purchaseCompleted {
-                    purchaseCompletedHandler(self, trans!, info!)
+                    purchaseCompletedHandler(self, trans!.sk1Transaction!, info!)
                 } else {
                     self.close()
                 }

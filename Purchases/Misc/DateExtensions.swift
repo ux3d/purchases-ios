@@ -48,3 +48,11 @@ extension Date {
     }
 
 }
+
+extension NSDate {
+
+    @objc func foo() -> String {
+        return "this is from purchases"
+    }
+
+}

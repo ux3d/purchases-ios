@@ -8,6 +8,7 @@
 
 import UIKit
 import UserNotifications
+import TestConflictFramework
 import RevenueCat
 
 @UIApplicationMain
@@ -35,6 +36,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Purchases.shared.checkTrialOrIntroductoryPriceEligibility(["com.revenuecat.monthly_4.99.1_week_intro"]) { introEligibilityDict in
             print(introEligibilityDict)
         }
+
+        print(TestClass().testFoo())
+        print(Purchases.shared.testFoo())
 
         return true
     }

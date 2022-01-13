@@ -464,6 +464,10 @@ extension Purchases {
         subscriberAttributesManager.setEmail(email, appUserID: appUserID)
     }
 
+    @objc public func testFoo() -> String {
+        return NSDate().foo()
+    }
+
     /**
      * Subscriber attribute associated with the phone number for the user
      *
