@@ -14,22 +14,43 @@
 
 import Foundation
 
-struct HTTPResponse {
-
-    typealias Body = [String: Any]
+struct HTTPResponse<Body> {
 
     let statusCode: HTTPStatusCode
-    let jsonObject: Body
+    let body: Body
 
 }
 
 extension HTTPResponse: CustomStringConvertible {
 
     var description: String {
-        "HTTPResponse(statusCode: \(self.statusCode.rawValue), jsonObject: \(self.jsonObject.description))"
+        if let bodyDescription = (self.body as? CustomStringConvertible)?.description {
+            return "HTTPResponse(statusCode: \(self.statusCode.rawValue), body: \(self.body.description))"
+        } else {
+            return "HTTPResponse(statusCode: \(self.statusCode.rawValue), body: \(type(of: self.body))"
+        }
     }
 
 }
+
+// MARK: -
+
+///// The content of an `HTTPResponse`
+///// - Note: this can be removed in favor of `Decodable` when all responses implement `Decodable`.
+// protocol HTTPResponseBody {
+//
+//    static func create(with data: Data) throws -> Self
+//
+// }
+
+/// Default implementation of `HTTPResponseBody` for any `Decodable`
+// extension Decodable {
+//
+//    static func create(with data: Data) throws -> Self {
+//        return try defaultJsonDecoder.decode(jsonData: data)
+//    }
+//
+// }
 
 // MARK: -
 
@@ -111,14 +132,14 @@ extension ErrorResponse {
 
     }
 
-    private static func parseWrapper(_ response: HTTPResponse.Body) -> Wrapper? {
+    private static func parseWrapper(_ response: Data) -> Wrapper? {
         return try? JSONDecoder.default.decode(dictionary: response, logErrors: false)
     }
 
     /// Creates an `ErrorResponse` with the content of an `HTTPResponse`.
     /// This method supports extracting error information from the root, or from inside `"attributes_error_response"`
     /// - Note: if the error couldn't be decoded, a default error is created.
-    static func from(_ response: HTTPResponse.Body) -> Self {
+    static func from(_ response: Data) -> Self {
         do {
             if let wrapper = Self.parseWrapper(response) {
                 return wrapper.attributesErrorResponse

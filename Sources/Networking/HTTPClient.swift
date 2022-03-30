@@ -16,7 +16,7 @@ import Foundation
 class HTTPClient {
 
     typealias RequestHeaders = [String: String]
-    typealias Completion = (Result<HTTPResponse, Error>) -> Void
+    typealias Completion<Value: Decodable> = (Result<HTTPResponse<Value>, Error>) -> Void
 
     private let session: URLSession
     internal let systemInfo: SystemInfo
@@ -37,9 +37,9 @@ class HTTPClient {
         self.dnsChecker = dnsChecker
     }
 
-    func perform(_ request: HTTPRequest,
-                 authHeaders: [String: String],
-                 completionHandler: Completion?) {
+    func perform<Value: Decodable>(_ request: HTTPRequest,
+                                   authHeaders: [String: String],
+                                   completionHandler: Completion<Value>?) {
         perform(request: .init(httpRequest: request,
                                headers: authHeaders,
                                completionHandler: completionHandler))
@@ -77,8 +77,33 @@ private extension HTTPClient {
 
         var httpRequest: HTTPRequest
         var headers: HTTPClient.RequestHeaders
-        var completionHandler: Completion?
+        var completionHandler: ((Result<HTTPResponse<Data>, Error>) -> Void)?
         var retried: Bool = false
+
+        init<Value: Decodable>(
+            httpRequest: HTTPRequest,
+            headers: HTTPClient.RequestHeaders,
+            completionHandler: HTTPClient.Completion<Value>?
+        ) {
+            self.httpRequest = httpRequest
+            self.headers = headers
+
+            if let completionHandler = completionHandler {
+                self.completionHandler = { result in
+                    completionHandler(
+                        result.flatMap {
+                            Result<HTTPResponse<Value>, Error> {
+                                try $0.mapBody {
+                                    try JSONDecoder.default.decode(jsonData: $0)
+                                }
+                            }
+                        }
+                    )
+                }
+            } else {
+                self.completionHandler = nil
+            }
+        }
 
         var method: HTTPRequest.Method { self.httpRequest.method }
         var path: String { self.httpRequest.path.description }
@@ -169,7 +194,7 @@ private extension HTTPClient {
                urlRequest: URLRequest,
                data: Data?,
                error networkError: Error?
-    ) -> Result<HTTPResponse, Error>? {
+    ) -> Result<HTTPResponse<Data>, Error>? {
         if let networkError = networkError {
             return .failure(networkError)
                 .mapError { error in
@@ -187,26 +212,26 @@ private extension HTTPClient {
             return .failure(ErrorUtils.unexpectedBackendResponseError())
         }
 
-        func extractBody(_ response: HTTPURLResponse, _ statusCode: HTTPStatusCode) throws -> [String: Any] {
+        func extractBody(_ response: HTTPURLResponse, _ statusCode: HTTPStatusCode) throws -> Data {
             if let data = data, statusCode != .notModified {
-                let result: [String: Any]?
+//                let result: [String: Any]?
 
-                do {
-                    result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                } catch let jsonError {
-                    Logger.error(Strings.network.parsing_json_error(error: jsonError))
+//                do {
+//                    result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+//                } catch let jsonError {
+//                    Logger.error(Strings.network.parsing_json_error(error: jsonError))
+//
+//                    let dataAsString = String(data: data, encoding: .utf8) ?? ""
+//                    Logger.error(Strings.network.json_data_received(dataString: dataAsString))
+//
+//                    throw jsonError
+//                }
 
-                    let dataAsString = String(data: data, encoding: .utf8) ?? ""
-                    Logger.error(Strings.network.json_data_received(dataString: dataAsString))
+//                guard let data = data else {
+//                    throw ErrorUtils.unexpectedBackendResponseError()
+//                }
 
-                    throw jsonError
-                }
-
-                guard let result = result else {
-                    throw ErrorUtils.unexpectedBackendResponseError()
-                }
-
-                return result
+                return data
             } else {
                 // No data if the body was empty, or if status is `.notModified`
                 // since the body will be fetched from the eTag.
@@ -220,7 +245,7 @@ private extension HTTPClient {
                                                            httpCode: statusCode))
 
         return Result { try extractBody(httpURLResponse, statusCode) }
-            .map { HTTPResponse(statusCode: statusCode, jsonObject: $0) }
+            .map { HTTPResponse(statusCode: statusCode, body: $0) }
             .map {
                 return self.eTagManager.httpResultFromCacheOrBackend(with: httpURLResponse,
                                                                      jsonObject: $0.jsonObject,
@@ -355,3 +380,37 @@ private extension Encodable {
     }
 
 }
+
+private extension HTTPResponse {
+
+    func mapBody<NewBody>(_ f: (Body) throws -> NewBody) rethrows -> HTTPResponse<NewBody> {
+        return .init(statusCode: self.statusCode, body: try f(self.body))
+    }
+
+}
+
+// private struct AnyHTTPResponseBody: HTTPResponseBody {
+//
+//    init(_ type: HTTPResponseBody.Type) {
+//        private struct Implementation: HTTPResponseBody {
+//            static func create(with data: Data) throws ->  {
+//                body.
+//            }
+//        }
+//
+//
+//        return Implementation()
+//    }
+
+//    private let type: HTTPResponseBody.Type
+//
+//    init<T: HTTPResponseBody>(_ type: T.Type = T.self) {
+//        self.type = type
+//    }
+//
+//    init(data: Data) throws {
+//        <#code#>
+//    }
+
+// }
+

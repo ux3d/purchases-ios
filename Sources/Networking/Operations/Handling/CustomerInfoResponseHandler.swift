@@ -17,31 +17,40 @@ class CustomerInfoResponseHandler {
 
     init() { }
 
-    func handle(customerInfoResponse response: Result<HTTPResponse, Error>,
+    func handle(customerInfoResponse response: Result<HTTPResponse<CustomerInfo>, Error>,
                 completion: BackendCustomerInfoResponseHandler) {
-        let errorResponse = ErrorResponse.from(response.value?.jsonObject ?? [:])
+//        let errorResponse = ErrorResponse.from(response.value?.jsonObject ?? [:])
 
         let result: Result<CustomerInfo, Error> = response
-            .flatMap { response in
-                Result {
-                    (
-                        response: response,
-                        info: try CustomerInfo.from(json: response.jsonObject)
-                    )
-                }
-                .mapError {
-                    errorResponse
-                        .asBackendError(with: response.statusCode)
-                        .addingUnderlyingError($0)
-                }
-            }
-            .flatMap { response, info in
-                if !errorResponse.attributeErrors.isEmpty {
-                    return .failure(errorResponse.asBackendError(with: response.statusCode))
-                } else {
-                    return .success(info)
-                }
-            }
+//            .mapError {
+//                errorResponse
+//                    .asBackendError(with: response.statusCode)
+//                    .addingUnderlyingError($0)
+//            }
+//            .flatMap { response in
+//                Result {
+//                    (
+//                        response: response,
+//                        info: try CustomerInfo.from(json: response.jsonObject)
+//                    )
+//                }
+
+        // TODO: move this to HTTPClient
+//                .mapError {
+//                    errorResponse
+//                        .asBackendError(with: response.statusCode)
+//                        .addingUnderlyingError($0)
+//                }
+//            }
+
+        // TODO: move this too
+//            .flatMap { response, info in
+//                if !errorResponse.attributeErrors.isEmpty {
+//                    return .failure(errorResponse.asBackendError(with: response.statusCode))
+//                } else {
+//                    return .success(info)
+//                }
+//            }
 
         completion(result)
     }

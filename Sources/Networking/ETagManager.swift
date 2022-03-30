@@ -41,7 +41,7 @@ class ETagManager {
     func httpResultFromCacheOrBackend(with response: HTTPURLResponse,
                                       jsonObject: [String: Any],
                                       request: URLRequest,
-                                      retried: Bool) -> HTTPResponse? {
+                                      retried: Bool) -> HTTPResponse<Data>? {
         let statusCode: HTTPStatusCode = .init(rawValue: response.statusCode)
         let resultFromBackend = HTTPResponse(statusCode: statusCode, jsonObject: jsonObject)
 
@@ -92,6 +92,7 @@ private extension ETagManager {
             if let cacheKey = eTagDefaultCacheKey(for: request),
                let value = $0.object(forKey: cacheKey),
                let data = value as? Data {
+//                return try? defaultJsonDecoder.decode(jsonData: data)
                 return ETagAndResponseWrapper(with: data)
             }
 
@@ -99,7 +100,7 @@ private extension ETagManager {
         }
     }
 
-    func storedHTTPResponse(for request: URLRequest) -> HTTPResponse? {
+    func storedHTTPResponse(for request: URLRequest) -> HTTPResponse<Data>? {
         if let storedETagAndResponse = storedETagAndResponse(for: request) {
             return HTTPResponse(
                     statusCode: storedETagAndResponse.statusCode,
@@ -139,3 +140,17 @@ private extension ETagManager {
     }
 
 }
+
+extension ETagManager {
+
+    struct Response {
+
+        let eTag: String
+        let statusCode: HTTPStatusCode
+        let jsonObject: Data
+
+    }
+
+}
+
+extension ETagManager.Response: Codable {}
