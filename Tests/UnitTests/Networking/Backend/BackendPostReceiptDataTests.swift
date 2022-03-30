@@ -408,60 +408,6 @@ class BackendPostReceiptDataTests: BaseBackendTests {
         ]
     }
 
-    func testForwards500ErrorsCorrectlyForCustomerInfoCalls() throws {
-        let response = MockHTTPClient.Response(statusCode: .internalServerError, response: Self.serverErrorResponse)
-        httpClient.mock(requestPath: .postReceiptData, response: response)
-
-        var error: NSError?
-        backend.post(receiptData: Self.receiptData,
-                     appUserID: Self.userID,
-                     isRestore: false,
-                     productData: nil,
-                     presentedOfferingIdentifier: nil,
-                     observerMode: false,
-                     subscriberAttributes: nil,
-                     completion: { result in
-            error = result.error as NSError?
-        })
-
-        expect(error).toEventuallyNot(beNil())
-        expect(error?.code) == ErrorCode.invalidCredentialsError.rawValue
-        expect(error?.userInfo["finishable"] as? Bool) == false
-
-        let underlyingError = try XCTUnwrap(error?.userInfo[NSUnderlyingErrorKey] as? NSError)
-
-        expect(underlyingError.localizedDescription) == Self.serverErrorResponse["message"]
-    }
-
-    func testForwards400ErrorsCorrectly() {
-        httpClient.mock(
-            requestPath: .postReceiptData,
-            response: .init(statusCode: .invalidRequest, response: Self.serverErrorResponse)
-        )
-
-        var error: Error?
-        var underlyingError: Error?
-
-        backend.post(receiptData: Self.receiptData,
-                     appUserID: Self.userID,
-                     isRestore: false,
-                     productData: nil,
-                     presentedOfferingIdentifier: nil,
-                     observerMode: false,
-                     subscriberAttributes: nil,
-                     completion: { result in
-            error = result.error
-        })
-
-        expect(error).toEventuallyNot(beNil())
-        expect((error as NSError?)?.code) == ErrorCode.invalidCredentialsError.rawValue
-        expect((error as NSError?)?.userInfo["finishable"] as? Bool) == true
-
-        underlyingError = (error as NSError?)?.userInfo[NSUnderlyingErrorKey] as? Error
-        expect(underlyingError).toEventuallyNot(beNil())
-        expect(underlyingError?.localizedDescription) == Self.serverErrorResponse["message"]
-    }
-
     func testPostingReceiptCreatesASubscriberInfoObject() {
         httpClient.mock(
             requestPath: .postReceiptData,
@@ -488,7 +434,7 @@ class BackendPostReceiptDataTests: BaseBackendTests {
         }
     }
 
-    func testNetworkErrorIsForwardedForCustomerInfoCalls() throws {
+    func testErrorIsForwardedForCustomerInfoCalls() throws {
         let error = NSError(domain: NSURLErrorDomain, code: -1009)
 
         self.httpClient.mock(
@@ -509,11 +455,7 @@ class BackendPostReceiptDataTests: BaseBackendTests {
         })
 
         expect(receivedError).toEventuallyNot(beNil())
-        expect(receivedError?.domain) == RCPurchasesErrorCodeDomain
-        expect(receivedError?.code) == ErrorCode.networkError.rawValue
-
-        let receivedUnderlyingError = try XCTUnwrap(receivedError?.userInfo[NSUnderlyingErrorKey] as? NSError)
-        expect(receivedUnderlyingError).to(matchError(error))
+        expect(receivedError) == error
     }
 
     @available(iOS 11.2, *)
