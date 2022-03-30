@@ -39,16 +39,16 @@ class ETagManager {
     }
 
     func httpResultFromCacheOrBackend(with response: HTTPURLResponse,
-                                      jsonObject: [String: Any],
+                                      data: Data,
                                       request: URLRequest,
-                                      retried: Bool) -> HTTPResponse? {
+                                      retried: Bool) -> HTTPResponse<Data>? {
         let statusCode: HTTPStatusCode = .init(rawValue: response.statusCode)
-        let resultFromBackend = HTTPResponse(statusCode: statusCode, jsonObject: jsonObject)
+        let resultFromBackend = HTTPResponse(statusCode: statusCode, body: data)
 
         let headersInResponse = response.allHeaderFields
 
         let eTagInResponse: String? = headersInResponse[ETagManager.eTagHeaderName] as? String ??
-                headersInResponse[ETagManager.eTagHeaderName.lowercased()] as? String
+        headersInResponse[ETagManager.eTagHeaderName.lowercased()] as? String
 
         guard let eTagInResponse = eTagInResponse else { return resultFromBackend }
         if shouldUseCachedVersion(responseCode: statusCode) {
@@ -68,8 +68,9 @@ class ETagManager {
         storeStatusCodeAndResponseIfNoError(
                 for: request,
                 statusCode: statusCode,
-                responseObject: jsonObject,
-                eTag: eTagInResponse)
+                data: data,
+                eTag: eTagInResponse
+        )
         return resultFromBackend
     }
 
@@ -87,23 +88,23 @@ private extension ETagManager {
         responseCode == .notModified
     }
 
-    func storedETagAndResponse(for request: URLRequest) -> ETagAndResponseWrapper? {
+    func storedETagAndResponse(for request: URLRequest) -> Response? {
         return self.userDefaults.read {
             if let cacheKey = eTagDefaultCacheKey(for: request),
                let value = $0.object(forKey: cacheKey),
                let data = value as? Data {
-                return ETagAndResponseWrapper(with: data)
+                return try? JSONDecoder.default.decode(jsonData: data)
             }
 
             return nil
         }
     }
 
-    func storedHTTPResponse(for request: URLRequest) -> HTTPResponse? {
+    func storedHTTPResponse(for request: URLRequest) -> HTTPResponse<Data>? {
         if let storedETagAndResponse = storedETagAndResponse(for: request) {
             return HTTPResponse(
-                    statusCode: storedETagAndResponse.statusCode,
-                    jsonObject: storedETagAndResponse.jsonObject
+                statusCode: storedETagAndResponse.statusCode,
+                body: storedETagAndResponse.data
             )
         }
 
@@ -112,12 +113,11 @@ private extension ETagManager {
 
     func storeStatusCodeAndResponseIfNoError(for request: URLRequest,
                                              statusCode: HTTPStatusCode,
-                                             responseObject: [String: Any]?,
+                                             data: Data,
                                              eTag: String) {
         if statusCode != .notModified && !statusCode.isServerError,
-           let responseObject = responseObject,
            let cacheKey = eTagDefaultCacheKey(for: request) {
-            let eTagAndResponse = ETagAndResponseWrapper(eTag: eTag, statusCode: statusCode, jsonObject: responseObject)
+            let eTagAndResponse = Response(eTag: eTag, statusCode: statusCode, data: data)
             if let dataToStore = eTagAndResponse.asData() {
                 self.userDefaults.write {
                     $0.set(dataToStore, forKey: cacheKey)
@@ -138,4 +138,25 @@ private extension ETagManager {
         return bundleID + ".\(suiteNameBase)"
     }
 
+}
+
+extension ETagManager {
+
+    struct Response {
+
+        let eTag: String
+        let statusCode: HTTPStatusCode
+        let data: Data
+
+    }
+
+}
+
+extension ETagManager.Response: Codable {}
+
+extension ETagManager.Response {
+
+    func asData() -> Data? {
+        return try? JSONEncoder.default.encode(self)
+    }
 }

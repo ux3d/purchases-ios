@@ -14,19 +14,23 @@
 
 import Foundation
 
-struct HTTPResponse {
+struct HTTPResponse<Body: HTTPResponseBody> {
 
-    typealias Body = [String: Any]
+    typealias Result = Swift.Result<Self, Error>
 
     let statusCode: HTTPStatusCode
-    let jsonObject: Body
+    let body: Body
 
 }
 
 extension HTTPResponse: CustomStringConvertible {
 
     var description: String {
-        "HTTPResponse(statusCode: \(self.statusCode.rawValue), jsonObject: \(self.jsonObject.description))"
+        if let bodyDescription = (self.body as? CustomStringConvertible)?.description {
+            return "HTTPResponse(statusCode: \(self.statusCode.rawValue), body: \(bodyDescription))"
+        } else {
+            return "HTTPResponse(statusCode: \(self.statusCode.rawValue), body: \(type(of: self.body))"
+        }
     }
 
 }
@@ -111,19 +115,19 @@ extension ErrorResponse {
 
     }
 
-    private static func parseWrapper(_ response: HTTPResponse.Body) -> Wrapper? {
-        return try? JSONDecoder.default.decode(dictionary: response, logErrors: false)
+    private static func parseWrapper(_ data: Data) -> Wrapper? {
+        return try? JSONDecoder.default.decode(jsonData: data, logErrors: false)
     }
 
     /// Creates an `ErrorResponse` with the content of an `HTTPResponse`.
     /// This method supports extracting error information from the root, or from inside `"attributes_error_response"`
     /// - Note: if the error couldn't be decoded, a default error is created.
-    static func from(_ response: HTTPResponse.Body) -> Self {
+    static func from(_ data: Data) -> Self {
         do {
-            if let wrapper = Self.parseWrapper(response) {
+            if let wrapper = Self.parseWrapper(data) {
                 return wrapper.attributesErrorResponse
             } else {
-                return try JSONDecoder.default.decode(dictionary: response)
+                return try JSONDecoder.default.decode(jsonData: data)
             }
         } catch {
             Logger.error(Strings.codable.decoding_error(error))
