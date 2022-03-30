@@ -1773,15 +1773,15 @@ public extension Purchases {
 extension Purchases: PurchasesOrchestratorDelegate {
 
     /**
-     * Called when a user initiates a promotional in-app purchase from the App Store.
+     * Called when a user initiates a promoted in-app purchase from the App Store.
      *
      * If your app is able to handle a purchase at the current time, run the deferment block in this method.
      *
      * If the app is not in a state to make a purchase: cache the defermentBlock, then call the defermentBlock
-     * when the app is ready to make the promotional purchase.
+     * when the app is ready to make the promoted purchase.
      *
      * If the purchase should never be made, you don't need to ever call the defermentBlock and ``Purchases``
-     * will not proceed with promotional purchases.
+     * will not proceed with promoted purchases.
      *
      * - Parameter product: ``StoreProduct`` the product that was selected from the app store.
      */

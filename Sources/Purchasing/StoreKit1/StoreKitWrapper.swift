@@ -120,7 +120,7 @@ extension StoreKitWrapper: SKPaymentQueueDelegate {
         }
     }
 
-    // Sent when a user initiated an in-app purchase from the App Store.
+    // Sent when a user initiated a promoted in-app purchase from the App Store.
     @available(watchOS, unavailable)
     func paymentQueue(_ queue: SKPaymentQueue,
                       shouldAddStorePayment payment: SKPayment,
